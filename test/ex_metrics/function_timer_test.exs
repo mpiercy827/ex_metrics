@@ -1,24 +1,8 @@
 defmodule ExMetrics.FunctionTimerTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case
   import Mimic
 
   @default_prefix "function_call.elixir.exmetrics.functiontimertest.timedmodule"
-
-  defmodule MetricsAgent do
-    use Agent
-
-    def start_link() do
-      Agent.start_link(fn -> nil end, name: __MODULE__)
-    end
-
-    def get() do
-      Agent.get(__MODULE__, fn state -> state end)
-    end
-
-    def set(values) do
-      Agent.update(__MODULE__, fn _ -> values end)
-    end
-  end
 
   defmodule TimedModule do
     use ExMetrics.FunctionTimer
@@ -50,23 +34,23 @@ defmodule ExMetrics.FunctionTimerTest do
     deftimed(multiple_options(_), do: :multiple_options_default)
   end
 
+  setup :set_mimic_global
+
+  setup _context do
+    MetricsAgent.start_link()
+
+    stub(ExMetrics, :timing, fn name, value, options ->
+      MetricsAgent.set({name, value, options})
+    end)
+
+    stub(ExMetrics, :histogram, fn name, value, options ->
+      MetricsAgent.set({name, value, options})
+    end)
+
+    :ok
+  end
+
   describe "deftimed/2" do
-    setup :set_mimic_global
-
-    setup _context do
-      MetricsAgent.start_link()
-
-      stub(ExMetrics, :timing, fn name, value, options ->
-        MetricsAgent.set({name, value, options})
-      end)
-
-      stub(ExMetrics, :histogram, fn name, value, options ->
-        MetricsAgent.set({name, value, options})
-      end)
-
-      :ok
-    end
-
     test "default metric name and options" do
       result = TimedModule.default()
       {metric_name, time, []} = MetricsAgent.get()

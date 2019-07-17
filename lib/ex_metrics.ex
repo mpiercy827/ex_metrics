@@ -26,6 +26,22 @@ defmodule ExMetrics do
     :ok = __MODULE__.connect()
   end
 
+  def time(function, metric_name, metric_options) do
+    {time, value} = :timer.tc(function)
+
+    ExMetrics.timing(metric_name, time / 1_000, metric_options)
+
+    value
+  end
+
+  def histogram_time(function, metric_name, metric_options) do
+    {time, value} = :timer.tc(function)
+
+    ExMetrics.histogram(metric_name, time / 1_000, metric_options)
+
+    value
+  end
+
   @spec set_config() :: :ok
   defp set_config do
     Enum.each(@config_options, &set_statix_config/1)
